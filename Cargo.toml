@@ -5,10 +5,5 @@ version = "0.1.0"
 license = "MIT/Apache 2.0"
 edition = "2018"
 
-[lib]
-name = "linker_fix_3ds"
-path = "src/lib.rs"
-crate-type = ["staticlib", "lib"]
-
-[dependencies.libc]
-git = "https://github.com/Meziu/libc.git"
+[dependencies]
+libc = { git = "https://github.com/Meziu/libc.git" }

@@ -1,3 +1,5 @@
+#![no_std]
+
 extern crate libc;
 
 #[no_mangle]

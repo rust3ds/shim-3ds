@@ -24,9 +24,15 @@ extern "C" fn posix_memalign(
 #[no_mangle]
 unsafe extern "C" fn realpath(
     path: *const libc::c_char,
-    resolved_path: *mut libc::c_char,
+    mut resolved_path: *mut libc::c_char,
 ) -> *mut libc::c_char {
-    libc::memcpy(resolved_path as _, path as _, libc::strlen(path));
+    let path_len = libc::strlen(path);
+
+    if resolved_path.is_null() {
+        resolved_path = libc::malloc(path_len + 1) as _;
+    }
+
+    libc::strncpy(resolved_path as _, path as _, path_len + 1);
 
     resolved_path
 }

@@ -58,7 +58,7 @@ unsafe extern "C" fn clock_gettime(
             retval = libc::gettimeofday(tv.as_mut_ptr(), ptr::null_mut());
             if retval == 0 {
                 let tv = tv.assume_init();
-                (*tp).tv_nsec = (tv.tv_usec * 1000).into();
+                (*tp).tv_nsec = tv.tv_usec * 1000;
                 (*tp).tv_sec = tv.tv_sec;
             }
         }

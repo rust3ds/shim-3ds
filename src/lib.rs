@@ -67,3 +67,19 @@ unsafe extern "C" fn clock_gettime(
 
     retval
 }
+
+#[no_mangle]
+unsafe extern "C" fn getrandom(
+    buf: *mut libc::c_void,
+    buflen: libc::size_t,
+    _flags: libc::c_uint,
+) -> libc::ssize_t {
+    let ret = ctru_sys::psInit();
+    if ret != 0 {
+        return ret.try_into().unwrap();
+    }
+
+    ctru_sys::PS_GenerateRandomBytes(buf, buflen.try_into().unwrap())
+        .try_into()
+        .unwrap()
+}

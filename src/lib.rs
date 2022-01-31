@@ -71,15 +71,29 @@ unsafe extern "C" fn clock_gettime(
 #[no_mangle]
 unsafe extern "C" fn getrandom(
     buf: *mut libc::c_void,
-    buflen: libc::size_t,
-    _flags: libc::c_uint,
+    mut buflen: libc::size_t,
+    flags: libc::c_uint,
 ) -> libc::ssize_t {
-    let ret = ctru_sys::psInit();
-    if ret != 0 {
-        return ret.try_into().unwrap();
+    // TODO: is this needed? Maybe just `buflen = buflen.min(libc::ssize_t::MAX)` ?
+    buflen = buflen.min(0x1FFFFFF);
+
+    if flags != 0 {
+        // no flags are supported on 3DS
+        *__errno() = libc::EINVAL;
+        return -1;
     }
 
-    ctru_sys::PS_GenerateRandomBytes(buf, buflen.try_into().unwrap())
-        .try_into()
-        .unwrap()
+    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen as libc::c_uint) as libc::ssize_t;
+    if ret < 0 {
+        // this is kind of a hack, but at least gives some visibility to the
+        // error code returned by PS_GenerateRandomBytes I guess? Another option
+        // might be to panic, which could use a payload of a specific error type
+        // that the ctru panic handler could decode into 3DS-specific human-readable
+        // errors.
+        *__errno() = ret as libc::c_int;
+        -1
+    } else {
+        // safe because above ensures buflen < isize::MAX
+        buflen as libc::ssize_t
+    }
 }

@@ -74,26 +74,38 @@ unsafe extern "C" fn getrandom(
     mut buflen: libc::size_t,
     flags: libc::c_uint,
 ) -> libc::ssize_t {
-    // TODO: is this needed? Maybe just `buflen = buflen.min(libc::ssize_t::MAX)` ?
-    buflen = buflen.min(0x1FFFFFF);
-
-    if flags != 0 {
-        // no flags are supported on 3DS
-        *__errno() = libc::EINVAL;
-        return -1;
-    }
-
-    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen as libc::c_uint) as libc::ssize_t;
-    if ret < 0 {
-        // this is kind of a hack, but at least gives some visibility to the
-        // error code returned by PS_GenerateRandomBytes I guess? Another option
-        // might be to panic, which could use a payload of a specific error type
-        // that the ctru panic handler could decode into 3DS-specific human-readable
-        // errors.
-        *__errno() = ret as libc::c_int;
-        -1
+    // Based on https://man7.org/linux/man-pages/man2/getrandom.2.html
+    // Technically we only have one source (no true /dev/random), but the
+    // behavior should be more expected this way.
+    let maxlen = if flags & libc::GRND_RANDOM != 0 {
+        512
     } else {
+        0x1FFFFFF
+    };
+    buflen = buflen.min(maxlen);
+
+    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen as libc::c_uint);
+
+    // avoid conflicting a real POSIX errno by using a value < 0
+    // should we define this in ctru-sys somewhere or something?
+    const ECTRU: libc::c_int = -1;
+
+    if ctru_sys::R_SUCCEEDED(ret) {
         // safe because above ensures buflen < isize::MAX
         buflen as libc::ssize_t
+    } else {
+        // best-effort attempt at translating return codes
+        *__errno() = match ctru_sys::R_SUMMARY(ret) as libc::c_uint {
+            ctru_sys::RS_WOULDBLOCK => libc::EAGAIN,
+            ctru_sys::RS_INVALIDARG | ctru_sys::RS_WRONGARG => {
+                match ctru_sys::R_DESCRIPTION(ret) as libc::c_uint {
+                    // most likely user error, forgot to initialize PS module
+                    ctru_sys::RD_INVALID_HANDLE => ECTRU,
+                    _ => libc::EINVAL,
+                }
+            }
+            _ => ECTRU,
+        };
+        -1
     }
 }

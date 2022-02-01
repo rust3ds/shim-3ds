@@ -1,9 +1,16 @@
 #![no_std]
 
+use core::any::Any;
+use core::convert::{TryFrom, TryInto};
 use core::mem::MaybeUninit;
+use core::num::TryFromIntError;
 use core::ptr;
 
 extern crate libc;
+
+// avoid conflicting a real POSIX errno by using a value < 0
+// should we define this in ctru-sys somewhere or something?
+const ECTRU: libc::c_int = -1;
 
 /// Call this somewhere to force Rust to link this module.
 /// The call doesn't need to execute, just exist.
@@ -60,6 +67,20 @@ unsafe extern "C" fn clock_gettime(
                 let tv = tv.assume_init();
                 (*tp).tv_nsec = tv.tv_usec * 1000;
                 (*tp).tv_sec = tv.tv_sec;
+            }
+        }
+        libc::CLOCK_MONOTONIC => {
+            if let Ok(tick) = i64::try_from(ctru_sys::svcGetSystemTick()) {
+                let sysclock = i64::from(ctru_sys::SYSCLOCK_ARM11);
+                (*tp).tv_sec = tick / sysclock;
+
+                // This cast to i32 is safe because the remainder will always be less than sysclock,
+                // which fits in an i32, and it's required to convert to f64.
+                let remainder = f64::from((tick - sysclock * (*tp).tv_sec) as i32);
+                // Casting to int rounds towards zero, which seems fine in this case.
+                (*tp).tv_nsec = (1000.0 * remainder / ctru_sys::CPU_TICKS_PER_USEC) as i32;
+            } else {
+                *__errno() = ECTRU
             }
         }
         _ => *__errno() = libc::EINVAL,

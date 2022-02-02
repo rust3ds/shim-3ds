@@ -1,9 +1,7 @@
 #![no_std]
 
-use core::any::Any;
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 use core::mem::MaybeUninit;
-use core::num::TryFromIntError;
 use core::ptr;
 
 extern crate libc;
@@ -58,6 +56,7 @@ unsafe extern "C" fn clock_gettime(
     tp: *mut libc::timespec,
 ) -> libc::c_int {
     let mut retval = -1;
+
     match clock_id {
         libc::CLOCK_REALTIME => {
             let mut tv = MaybeUninit::uninit();
@@ -71,15 +70,19 @@ unsafe extern "C" fn clock_gettime(
         }
         libc::CLOCK_MONOTONIC => {
             if let Ok(tick) = i64::try_from(ctru_sys::svcGetSystemTick()) {
-                let sysclock = i64::from(ctru_sys::SYSCLOCK_ARM11);
-                (*tp).tv_sec = tick / sysclock;
+                retval = 0;
 
-                // This cast to i32 is safe because the remainder will always be less than sysclock,
-                // which fits in an i32, and it's required to convert to f64.
-                let remainder = f64::from((tick - sysclock * (*tp).tv_sec) as i32);
-                // Casting to int rounds towards zero, which seems fine in this case.
-                (*tp).tv_nsec = (1000.0 * remainder / ctru_sys::CPU_TICKS_PER_USEC) as i32;
+                let sysclock_rate = i64::from(ctru_sys::SYSCLOCK_ARM11);
+                (*tp).tv_sec = tick / sysclock_rate;
+
+                // this should always fit in an f64 easily, since it's < sysclock_rate
+                let remainder = (tick % sysclock_rate) as f64;
+
+                // cast to i32 rounds toward zero, which should be fine for this use case
+                (*tp).tv_nsec = (1000.0 * (remainder / ctru_sys::CPU_TICKS_PER_USEC)) as i32;
             } else {
+                // Too many ticks, this device has been on for >1000 years!
+                // We would have otherwise given a negative result back to caller
                 *__errno() = ECTRU
             }
         }

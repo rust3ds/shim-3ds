@@ -4,8 +4,6 @@ use core::convert::TryFrom;
 use core::mem::MaybeUninit;
 use core::ptr;
 
-extern crate libc;
-
 // avoid conflicting a real POSIX errno by using a value < 0
 // should we define this in ctru-sys somewhere or something?
 const ECTRU: libc::c_int = -1;
@@ -22,7 +20,7 @@ extern "C" {
 }
 
 #[no_mangle]
-extern "C" fn posix_memalign(
+pub extern "C" fn posix_memalign(
     memptr: *mut *mut libc::c_void,
     align: libc::size_t,
     size: libc::size_t,
@@ -35,7 +33,7 @@ extern "C" fn posix_memalign(
 }
 
 #[no_mangle]
-unsafe extern "C" fn realpath(
+pub unsafe extern "C" fn realpath(
     path: *const libc::c_char,
     mut resolved_path: *mut libc::c_char,
 ) -> *mut libc::c_char {
@@ -51,7 +49,7 @@ unsafe extern "C" fn realpath(
 }
 
 #[no_mangle]
-unsafe extern "C" fn clock_gettime(
+pub unsafe extern "C" fn clock_gettime(
     clock_id: libc::clockid_t,
     tp: *mut libc::timespec,
 ) -> libc::c_int {
@@ -93,7 +91,7 @@ unsafe extern "C" fn clock_gettime(
 }
 
 #[no_mangle]
-unsafe extern "C" fn getrandom(
+pub unsafe extern "C" fn getrandom(
     buf: *mut libc::c_void,
     mut buflen: libc::size_t,
     flags: libc::c_uint,
@@ -131,5 +129,16 @@ unsafe extern "C" fn getrandom(
             _ => ECTRU,
         };
         -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn sysconf(name: libc::c_int) -> libc::c_long {
+    match name {
+        libc::_SC_PAGESIZE => 0x1000,
+        _ => {
+            unsafe { *__errno() = libc::EINVAL };
+            -1
+        }
     }
 }

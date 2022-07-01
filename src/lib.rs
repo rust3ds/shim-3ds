@@ -11,7 +11,7 @@ const ECTRU: libc::c_int = -1;
 /// Call this somewhere to force Rust to link this module.
 /// The call doesn't need to execute, just exist.
 ///
-/// See https://github.com/rust-lang/rust/issues/47384
+/// See <https://github.com/rust-lang/rust/issues/47384>
 pub fn init() {}
 
 extern "C" {
@@ -20,14 +20,12 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn posix_memalign(
+pub unsafe extern "C" fn posix_memalign(
     memptr: *mut *mut libc::c_void,
     align: libc::size_t,
     size: libc::size_t,
 ) -> libc::c_int {
-    unsafe {
-        *memptr = libc::memalign(align, size);
-    }
+    *memptr = libc::memalign(align, size);
 
     0
 }

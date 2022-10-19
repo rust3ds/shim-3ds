@@ -6,5 +6,5 @@ license = "MIT/Apache 2.0"
 edition = "2018"
 
 [dependencies]
-ctru-sys = { git = "https://github.com/Meziu/ctru-rs.git" }
+ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
 libc = "0.2.126"

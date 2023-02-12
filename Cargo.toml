@@ -3,8 +3,8 @@ name = "linker-fix-3ds"
 authors = ["Andrea Ciliberti <meziu210@icloud.com>"]
 version = "0.1.0"
 license = "MIT/Apache 2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 ctru-sys = { git = "https://github.com/rust3ds/ctru-rs.git" }
-libc = "0.2.126"
+libc = "0.2.139"

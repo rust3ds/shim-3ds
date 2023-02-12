@@ -1,13 +1,5 @@
 #![no_std]
 
-use core::convert::TryFrom;
-use core::mem::MaybeUninit;
-use core::ptr;
-
-// avoid conflicting a real POSIX errno by using a value < 0
-// should we define this in ctru-sys somewhere or something?
-const ECTRU: libc::c_int = -1;
-
 /// Call this somewhere to force Rust to link this module.
 /// The call doesn't need to execute, just exist.
 ///
@@ -47,48 +39,6 @@ pub unsafe extern "C" fn realpath(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn clock_gettime(
-    clock_id: libc::clockid_t,
-    tp: *mut libc::timespec,
-) -> libc::c_int {
-    let mut retval = -1;
-
-    match clock_id {
-        libc::CLOCK_REALTIME => {
-            let mut tv = MaybeUninit::uninit();
-
-            retval = libc::gettimeofday(tv.as_mut_ptr(), ptr::null_mut());
-            if retval == 0 {
-                let tv = tv.assume_init();
-                (*tp).tv_nsec = tv.tv_usec * 1000;
-                (*tp).tv_sec = tv.tv_sec;
-            }
-        }
-        libc::CLOCK_MONOTONIC => {
-            if let Ok(tick) = i64::try_from(ctru_sys::svcGetSystemTick()) {
-                retval = 0;
-
-                let sysclock_rate = i64::from(ctru_sys::SYSCLOCK_ARM11);
-                (*tp).tv_sec = tick / sysclock_rate;
-
-                // this should always fit in an f64 easily, since it's < sysclock_rate
-                let remainder = (tick % sysclock_rate) as f64;
-
-                // cast to i32 rounds toward zero, which should be fine for this use case
-                (*tp).tv_nsec = (1000.0 * (remainder / ctru_sys::CPU_TICKS_PER_USEC)) as i32;
-            } else {
-                // Too many ticks, this device has been on for >1000 years!
-                // We would have otherwise given a negative result back to caller
-                *__errno() = ECTRU
-            }
-        }
-        _ => *__errno() = libc::EINVAL,
-    }
-
-    retval
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn getrandom(
     buf: *mut libc::c_void,
     mut buflen: libc::size_t,
@@ -104,7 +54,7 @@ pub unsafe extern "C" fn getrandom(
     };
     buflen = buflen.min(maxlen);
 
-    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen as libc::c_uint);
+    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
 
     // avoid conflicting a real POSIX errno by using a value < 0
     // should we define this in ctru-sys somewhere or something?

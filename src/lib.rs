@@ -51,7 +51,7 @@ pub unsafe extern "C" fn getrandom(
     };
     buflen = buflen.min(maxlen);
 
-    ctru_sys::psInit();
+    let _ = ctru_sys::psInit();
     let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
 
     // avoid conflicting a real POSIX errno by using a value < 0

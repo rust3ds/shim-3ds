@@ -1,9 +1,6 @@
 #![no_std]
 
-/// Call this somewhere to force Rust to link this module.
-/// The call doesn't need to execute, just exist.
-///
-/// See <https://github.com/rust-lang/rust/issues/47384>
+/// Reference this function somewhere (eg. ´use linker_fix_3sd::init´ in the main crate) to import all missing implementations.
 pub fn init() {}
 
 extern "C" {
@@ -54,6 +51,7 @@ pub unsafe extern "C" fn getrandom(
     };
     buflen = buflen.min(maxlen);
 
+    ctru_sys::psInit();
     let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
 
     // avoid conflicting a real POSIX errno by using a value < 0

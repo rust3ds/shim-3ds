@@ -1,8 +1,5 @@
 #![no_std]
 
-/// Reference this function somewhere (eg. ´use linker_fix_3sd::init´ in the main crate) to import all missing implementations.
-pub fn init() {}
-
 extern "C" {
     // Not provided by libc: https://github.com/rust-lang/libc/issues/1995
     fn __errno() -> *mut libc::c_int;

@@ -1,11 +1,5 @@
 #![no_std]
 
-/// Call this somewhere to force Rust to link this module.
-/// The call doesn't need to execute, just exist.
-///
-/// See <https://github.com/rust-lang/rust/issues/47384>
-pub fn init() {}
-
 extern "C" {
     // Not provided by libc: https://github.com/rust-lang/libc/issues/1995
     fn __errno() -> *mut libc::c_int;
@@ -54,29 +48,44 @@ pub unsafe extern "C" fn getrandom(
     };
     buflen = buflen.min(maxlen);
 
-    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
-
-    // avoid conflicting a real POSIX errno by using a value < 0
-    // should we define this in ctru-sys somewhere or something?
+    // Avoid conflicting a real POSIX errno by using a value < 0
+    // Should we define this in ctru-sys somewhere or something?
     const ECTRU: libc::c_int = -1;
 
+    let ret = ctru_sys::psInit();
+
+    // Error handling code for psInit
+    if ctru_sys::R_FAILED(ret) {
+        // Best-effort attempt at translating return codes
+        *__errno() = match ctru_sys::R_SUMMARY(ret) as libc::c_uint {
+            // The service handle is full (would block to await availability)
+            ctru_sys::RS_WOULDBLOCK => libc::EAGAIN,
+            // The caller doesn't have the right to call the service
+            _ => ECTRU,
+        };
+        return -1
+    }
+
+    let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
+
+    // Error handling code for PS_GenerateRandomBytes
     if ctru_sys::R_SUCCEEDED(ret) {
-        // safe because above ensures buflen < isize::MAX
+        // Safe because above ensures buflen < isize::MAX
         buflen as libc::ssize_t
     } else {
-        // best-effort attempt at translating return codes
+        // Best-effort attempt at translating return codes
         *__errno() = match ctru_sys::R_SUMMARY(ret) as libc::c_uint {
             ctru_sys::RS_WOULDBLOCK => libc::EAGAIN,
             ctru_sys::RS_INVALIDARG | ctru_sys::RS_WRONGARG => {
                 match ctru_sys::R_DESCRIPTION(ret) as libc::c_uint {
-                    // most likely user error, forgot to initialize PS module
+                    // The handle is incorrect (even though we just made it)
                     ctru_sys::RD_INVALID_HANDLE => ECTRU,
                     _ => libc::EINVAL,
                 }
             }
             _ => ECTRU,
         };
-        -1
+        return -1
     }
 }
 

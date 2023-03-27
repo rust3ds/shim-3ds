@@ -63,7 +63,7 @@ pub unsafe extern "C" fn getrandom(
             // The caller doesn't have the right to call the service
             _ => ECTRU,
         };
-        return -1
+        return -1;
     }
 
     let ret = ctru_sys::PS_GenerateRandomBytes(buf, buflen);
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn getrandom(
             }
             _ => ECTRU,
         };
-        return -1
+        return -1;
     }
 }
 
@@ -98,4 +98,19 @@ pub extern "C" fn sysconf(name: libc::c_int) -> libc::c_long {
             -1
         }
     }
+}
+
+#[no_mangle]
+extern "C" fn execvp(_argc: *const libc::c_char, _argv: *mut *const libc::c_char) -> libc::c_int {
+    -1
+}
+
+#[no_mangle]
+extern "C" fn pipe(_fildes: *mut libc::c_int) -> libc::c_int {
+    -1
+}
+
+#[no_mangle]
+extern "C" fn sigemptyset(_arg1: *mut libc::sigset_t) -> ::libc::c_int {
+    -1
 }

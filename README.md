@@ -1,4 +1,4 @@
-# shim-3ds
+# rust-linker-fix-3ds
 
 Shim implementation of some functions of the `newlib` library.
 

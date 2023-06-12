@@ -1,36 +1,6 @@
 #![no_std]
 
-extern "C" {
-    // Not provided by libc: https://github.com/rust-lang/libc/issues/1995
-    fn __errno() -> *mut libc::c_int;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn posix_memalign(
-    memptr: *mut *mut libc::c_void,
-    align: libc::size_t,
-    size: libc::size_t,
-) -> libc::c_int {
-    *memptr = libc::memalign(align, size);
-
-    0
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn realpath(
-    path: *const libc::c_char,
-    mut resolved_path: *mut libc::c_char,
-) -> *mut libc::c_char {
-    let path_len = libc::strlen(path);
-
-    if resolved_path.is_null() {
-        resolved_path = libc::malloc(path_len + 1) as _;
-    }
-
-    libc::strncpy(resolved_path as _, path as _, path_len + 1);
-
-    resolved_path
-}
+use ctru_sys::__errno;
 
 #[no_mangle]
 pub unsafe extern "C" fn getrandom(
@@ -85,32 +55,7 @@ pub unsafe extern "C" fn getrandom(
             }
             _ => ECTRU,
         };
-        return -1;
+
+        -1
     }
-}
-
-#[no_mangle]
-pub extern "C" fn sysconf(name: libc::c_int) -> libc::c_long {
-    match name {
-        libc::_SC_PAGESIZE => 0x1000,
-        _ => {
-            unsafe { *__errno() = libc::EINVAL };
-            -1
-        }
-    }
-}
-
-#[no_mangle]
-extern "C" fn execvp(_argc: *const libc::c_char, _argv: *mut *const libc::c_char) -> libc::c_int {
-    -1
-}
-
-#[no_mangle]
-extern "C" fn pipe(_fildes: *mut libc::c_int) -> libc::c_int {
-    -1
-}
-
-#[no_mangle]
-extern "C" fn sigemptyset(_arg1: *mut libc::sigset_t) -> ::libc::c_int {
-    -1
 }
